@@ -1,17 +1,25 @@
 from .serializer import Serializer
 from . import utils
 
-def serialize(single=False):
+def serialize(*args, **kwargs):
+    single = kwargs.get('single', False)
+    # this should be def serialize(*args, single=False):
     s = Serializer()
     def middle(f):
-        if single:
-            def inner(*args, **kwargs):
-                return s.serialize([f(*args, **kwargs)])[0]
-        else:
-            def inner(*args, **kwargs):
+        def inner(*args, **kwargs):
+            if single:
+                ret = f(*args, **kwargs)
+                if ret is None:
+                    return
+                else:
+                    return s.serialize([ret])[0]
+            else:
                 return s.serialize(f(*args, **kwargs))
         return inner
-    return middle
+    if args:
+        return middle(args[0])
+    else:
+        return middle
 
 @serialize(single=True)
 def get(model_label, params):
@@ -23,9 +31,14 @@ def get(model_label, params):
     example:
     
     >>> web3db.get('auth.User', {'id': 23})
+    
+    $ zerorpc-client --json tcp://0:5555 get '"auth.User"' {"id": 1}'
     """
     model = utils._get_model(model_label)
-    obj = model.objects.get(**params)
+    try:
+        obj = model.objects.get(**params)
+    except model.DoesNotExist:
+        obj = None
     return obj
     
 _query_stage_type_map = {
@@ -48,11 +61,16 @@ def query(model_label, query_stages):
     ... ])
     ...
     
+    $ zerorpc-client --json tcp://0:5555 query '"auth.User"' '[
+        {"type":"filter", "params":{"id": 1}}
+    ]'
+    
     """
     model = utils._get_model(model_label)
     qs = model.objects.all()
     for stage in query_stages:
-        qs = _query_stage_type_map[stage['type']](qs)(**stage['params'])
+        qs_type = _query_stage_type_map[stage['type']](qs)
+        qs = qs_type(**stage['params'])
     return qs
 
 
