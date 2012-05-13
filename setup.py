@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='django-zerorpc-api',
-    version='0.1.2dev',
+    version='0.1.3',
     author='Gabriel Grant',
     packages=['zerorpc_api', 'zerorpc_api.management.commands'],
     license='LGPL',
